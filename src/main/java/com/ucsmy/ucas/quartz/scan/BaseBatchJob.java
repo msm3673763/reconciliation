@@ -72,7 +72,7 @@ public abstract class BaseBatchJob implements org.quartz.Job {
 	* @version V1.0   
 	*/
 	protected JobParameters getJobParameters() {
-		Map<String, JobParameter> map = new HashMap<>();
+		Map<String, JobParameter> map = new HashMap<String, JobParameter>();
 		map.put("jobname", new JobParameter(this.getJobName()));
 		map.put("timestamp", new JobParameter(System.currentTimeMillis()));
 		map.put("thread", new JobParameter(Thread.currentThread().getName()));
