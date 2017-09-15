@@ -12,11 +12,11 @@ import com.alipay.api.AlipayClient;
 import com.alipay.api.DefaultAlipayClient;
 import com.alipay.api.request.AlipayDataDataserviceBillDownloadurlQueryRequest;
 import com.alipay.api.response.AlipayDataDataserviceBillDownloadurlQueryResponse;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -43,11 +43,9 @@ public class AlipayTest {
                 FORMAT, CHARSET, ALIPAY_PUBLIC_KEY, SIGN_TYPE); //获得初始化的AlipayClient
         AlipayDataDataserviceBillDownloadurlQueryRequest request
                 = new AlipayDataDataserviceBillDownloadurlQueryRequest();//创建API对应的request类
-        request.setBizContent("{" +
-                        "    \"bill_type\":\"trade\"," +
-                        "    \"bill_date\":\"2017-09-12\"   }");//设置业务参数
+        request.setBizContent("{\"bill_type\":\"trade\",\"bill_date\":\"2017-09-12\"}");//设置业务参数
         AlipayDataDataserviceBillDownloadurlQueryResponse response = alipayClient.execute(request);
-        System.out.print(response.getBody());
+        System.out.println(response.getBody());
 
         //根据response中的结果继续业务逻辑处理
         if (response.isSuccess()) {
@@ -55,40 +53,41 @@ public class AlipayTest {
             String filePath = "D:/alipay_bill.zip";
             URL url;
             HttpURLConnection httpUrlConnection = null;
-            InputStream fis = null;
-            FileOutputStream fos = null;
             try {
                 url = new URL(billDownloadUrl);
-                url.openConnection();
+                httpUrlConnection = (HttpURLConnection) url.openConnection();
+                httpUrlConnection.connect();
                 billDownloadUrl = httpUrlConnection.getHeaderField("Location");//获取重定向后的url
 
-                //重新发起请求
-                url = new URL(billDownloadUrl);
-                httpUrlConnection.setConnectTimeout(5 * 1000);
-                httpUrlConnection.setDoInput(true);
-                httpUrlConnection.setDoOutput(true);
-                httpUrlConnection.setUseCaches(false);
-                httpUrlConnection.setRequestMethod("GET");
-                httpUrlConnection.setRequestProperty("CHARSET", "UTF-8");
-                url.openConnection();
+                //如果重定向地址部位空，重新发起请求
+                if (StringUtils.isNotEmpty(billDownloadUrl)) {
+                    url = new URL(billDownloadUrl);
+                    httpUrlConnection = (HttpURLConnection) url.openConnection();
+                    httpUrlConnection.setConnectTimeout(5 * 1000);
+                    httpUrlConnection.setDoInput(true);
+                    httpUrlConnection.setDoOutput(true);
+                    httpUrlConnection.setUseCaches(false);
+                    httpUrlConnection.setRequestMethod("GET");
+                    httpUrlConnection.setRequestProperty("CHARSET", "UTF-8");
+                    httpUrlConnection.connect();
+                }
 
-                fis = httpUrlConnection.getInputStream();
-                byte[] temp = new byte[1024];
-                int b;
-                fos = new FileOutputStream(new File(filePath));
-                while ((b = fis.read(temp)) != -1) {
-                    fos.write(temp, 0, b);
-                    fos.flush();
+                try (InputStream fis = httpUrlConnection.getInputStream();
+                     FileOutputStream fos = new FileOutputStream(new File(filePath))) {
+                    byte[] temp = new byte[1024];
+                    int b;
+                    while ((b = fis.read(temp)) != -1) {
+                        fos.write(temp, 0, b);
+                        fos.flush();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
-                try {
-                    if (fis!=null) fis.close();
-                    if (fos!=null) fos.close();
-                    if (httpUrlConnection!=null) httpUrlConnection.disconnect();
-                } catch (IOException e) {
-                    e.printStackTrace();
+                if (httpUrlConnection != null) {
+                    httpUrlConnection.disconnect();
                 }
             }
         }

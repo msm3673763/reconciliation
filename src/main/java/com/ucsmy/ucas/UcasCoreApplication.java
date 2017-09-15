@@ -14,7 +14,6 @@ public class UcasCoreApplication extends SpringBootServletInitializer {
 
 	public static void main(String[] args) {
 		SpringApplication.run(UcasCoreApplication.class, args);
-
 	}
 
 	@Override
