@@ -14,15 +14,15 @@ import com.alipay.api.request.AlipayDataDataserviceBillDownloadurlQueryRequest;
 import com.alipay.api.response.AlipayDataDataserviceBillDownloadurlQueryResponse;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 
 /**
- * 暂无描述
+ * 下载支付宝账单测试类
  *
  * @author ucs_masiming
  * @since 2017/9/14
@@ -48,43 +48,50 @@ public class AlipayTest {
                         "    \"bill_date\":\"2017-09-12\"   }");//设置业务参数
         AlipayDataDataserviceBillDownloadurlQueryResponse response = alipayClient.execute(request);
         System.out.print(response.getBody());
-//根据response中的结果继续业务逻辑处理
-    }
 
-    @Test
-    public void testDownloadBillFile() {
-        //将接口返回的对账单下载地址传入urlStr
-        String urlStr = "http://dwbillcenter.alipaydev.com/downloadBillFile.resource?bizType=trade&userId=20881021714158790156&fileType=csv.zip&bizDates=20170912&downloadFileName=20881021714158790156_20170912.csv.zip&fileId=%2Ftrade%2F20881021714158790156%2F20170912.csv.zip&timestamp=1505356820&token=7e22bc6e86adc1bf7bc2c30fac95c2b1";
-        //指定希望保存的文件路径
-        String filePath = "D:/20881021714158790156.zip";
-        URL url;
-        HttpURLConnection httpUrlConnection = null;
-        InputStream fis = null;
-        FileOutputStream fos = null;
-        try {
-            url = new URL(urlStr);
-            httpUrlConnection = (HttpURLConnection) url.openConnection();
-            httpUrlConnection.connect();
-            fis = httpUrlConnection.getInputStream();
-            byte[] temp = new byte[1024];
-            int b;
-            fos = new FileOutputStream(filePath);
-            while ((b = fis.read(temp)) != -1) {
-                fos.write(temp, 0, b);
-                fos.flush();
-            }
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
+        //根据response中的结果继续业务逻辑处理
+        if (response.isSuccess()) {
+            String billDownloadUrl = response.getBillDownloadUrl();
+            String filePath = "D:/alipay_bill.zip";
+            URL url;
+            HttpURLConnection httpUrlConnection = null;
+            InputStream fis = null;
+            FileOutputStream fos = null;
             try {
-                if(fis!=null) fis.close();
-                if(fos!=null) fos.close();
-                if(httpUrlConnection!=null) httpUrlConnection.disconnect();
-            } catch (IOException e) {
+                url = new URL(billDownloadUrl);
+                url.openConnection();
+                billDownloadUrl = httpUrlConnection.getHeaderField("Location");//获取重定向后的url
+
+                //重新发起请求
+                url = new URL(billDownloadUrl);
+                httpUrlConnection.setConnectTimeout(5 * 1000);
+                httpUrlConnection.setDoInput(true);
+                httpUrlConnection.setDoOutput(true);
+                httpUrlConnection.setUseCaches(false);
+                httpUrlConnection.setRequestMethod("GET");
+                httpUrlConnection.setRequestProperty("CHARSET", "UTF-8");
+                url.openConnection();
+
+                fis = httpUrlConnection.getInputStream();
+                byte[] temp = new byte[1024];
+                int b;
+                fos = new FileOutputStream(new File(filePath));
+                while ((b = fis.read(temp)) != -1) {
+                    fos.write(temp, 0, b);
+                    fos.flush();
+                }
+            } catch (Exception e) {
                 e.printStackTrace();
+            } finally {
+                try {
+                    if (fis!=null) fis.close();
+                    if (fos!=null) fos.close();
+                    if (httpUrlConnection!=null) httpUrlConnection.disconnect();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
+
 }
